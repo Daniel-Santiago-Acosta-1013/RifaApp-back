@@ -1,0 +1,32 @@
+name: Trigger Infra Deploy
+
+on:
+  push:
+    branches: ["main"]
+    paths:
+      - "app/**"
+      - "pyproject.toml"
+      - "scripts/**"
+
+jobs:
+  dispatch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Dispatch deploy to infra repo
+        env:
+          INFRA_REPO: ${{ vars.INFRA_REPO }}
+          GH_TOKEN: ${{ secrets.INFRA_DISPATCH_TOKEN }}
+        run: |
+          if [ -z "$INFRA_REPO" ]; then
+            echo "INFRA_REPO is not set" >&2
+            exit 1
+          fi
+          if [ -z "$GH_TOKEN" ]; then
+            echo "INFRA_DISPATCH_TOKEN is not set" >&2
+            exit 1
+          fi
+          curl -sS -X POST \
+            -H "Accept: application/vnd.github+json" \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            https://api.github.com/repos/$INFRA_REPO/dispatches \
+            -d '{"event_type":"backend-updated","client_payload":{"backend_repo":"'"${GITHUB_REPOSITORY}"'","backend_ref":"'"${GITHUB_REF_NAME}"'"}}'
