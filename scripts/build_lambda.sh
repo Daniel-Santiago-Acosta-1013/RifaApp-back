@@ -18,6 +18,19 @@ rm -rf "$BUILD_DIR"
 mkdir -p "$BUILD_DIR"
 
 "$POETRY_CMD" export -f requirements.txt --without-hashes -o "$BUILD_DIR/requirements.txt"
-python3 -m pip install --upgrade -r "$BUILD_DIR/requirements.txt" -t "$BUILD_DIR"
+
+PIP_PLATFORM="${LAMBDA_PLATFORM:-manylinux2014_x86_64}"
+PIP_PYTHON_VERSION="${LAMBDA_PYTHON_VERSION:-311}"
+PIP_IMPLEMENTATION="${LAMBDA_PIP_IMPLEMENTATION:-cp}"
+PIP_ABI="${LAMBDA_PIP_ABI:-cp311}"
+
+python3 -m pip install --upgrade \
+  --platform "$PIP_PLATFORM" \
+  --python-version "$PIP_PYTHON_VERSION" \
+  --implementation "$PIP_IMPLEMENTATION" \
+  --abi "$PIP_ABI" \
+  --only-binary=:all: \
+  -r "$BUILD_DIR/requirements.txt" \
+  -t "$BUILD_DIR"
 
 cp -R "$ROOT/app" "$BUILD_DIR/app"

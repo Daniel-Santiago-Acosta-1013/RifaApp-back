@@ -16,8 +16,8 @@ poetry install
 poetry run uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
-Swagger: `http://localhost:8000/docs`
-OpenAPI: `http://localhost:8000/openapi.json`
+Swagger: `http://localhost:8000/rifaapp/docs`
+OpenAPI: `http://localhost:8000/rifaapp/openapi.json`
 
 ## Variables de entorno
 - `DB_HOST`
@@ -72,10 +72,10 @@ Configura en GitHub (repo backend):
 - `app/models/`: esquemas Pydantic
 
 ## Endpoints principales
-- `GET /health`
-- `POST /raffles`
-- `GET /raffles`
-- `GET /raffles/{raffle_id}`
-- `POST /raffles/{raffle_id}/tickets`
-- `GET /raffles/{raffle_id}/tickets`
-- `POST /raffles/{raffle_id}/draw`
+- `GET /rifaapp/health`
+- `POST /rifaapp/raffles`
+- `GET /rifaapp/raffles`
+- `GET /rifaapp/raffles/{raffle_id}`
+- `POST /rifaapp/raffles/{raffle_id}/tickets`
+- `GET /rifaapp/raffles/{raffle_id}/tickets`
+- `POST /rifaapp/raffles/{raffle_id}/draw`
