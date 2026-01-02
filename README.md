@@ -32,6 +32,11 @@ Para crear tablas automaticamente en desarrollo:
 export AUTO_MIGRATE=true
 ```
 
+Para ejecutar migraciones manuales en CI/CD, se expone:
+```
+POST /rifaapp/migrations/run
+```
+
 ## Build para Lambda
 Genera `lambda_dist/` con las dependencias y el paquete `app/`:
 
@@ -60,6 +65,7 @@ Opciones utiles:
 
 ## Deploy CI/CD
 Este repo puede notificar al repo de infraestructura para desplegar cambios.
+Tambien incluye un workflow manual para ejecutar migraciones en infra.
 
 Configura en GitHub (repo backend):
 - `INFRA_REPO` (Variable): `owner/RifaApp-infra`
@@ -74,6 +80,9 @@ Configura en GitHub (repo backend):
 
 ## Endpoints principales
 - `GET /rifaapp/health`
+- `POST /rifaapp/auth/register`
+- `POST /rifaapp/auth/login`
+- `POST /rifaapp/migrations/run`
 - `POST /rifaapp/raffles`
 - `GET /rifaapp/raffles`
 - `GET /rifaapp/raffles/{raffle_id}`

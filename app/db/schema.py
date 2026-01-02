@@ -32,6 +32,18 @@ def ensure_schema(conn) -> None:
     )
     cur.execute(
         """
+        CREATE TABLE IF NOT EXISTS users (
+            id uuid PRIMARY KEY,
+            name text NOT NULL,
+            email text NOT NULL UNIQUE,
+            password_hash text NOT NULL,
+            password_salt text NOT NULL,
+            created_at timestamptz NOT NULL DEFAULT now()
+        );
+        """
+    )
+    cur.execute(
+        """
         CREATE TABLE IF NOT EXISTS tickets (
             id uuid PRIMARY KEY,
             raffle_id uuid NOT NULL REFERENCES raffles(id) ON DELETE CASCADE,

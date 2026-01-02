@@ -4,7 +4,7 @@ from fastapi import APIRouter, FastAPI, Request
 from fastapi.openapi.docs import get_redoc_html, get_swagger_ui_html
 from mangum import Mangum
 
-from app.api.routes import health, raffles, tickets
+from app.api.routes import auth, health, migrations, raffles, tickets
 from app.core.logging import configure_logging
 
 configure_logging()
@@ -23,7 +23,9 @@ app = FastAPI(
 )
 
 api_router = APIRouter(prefix=API_PREFIX)
+api_router.include_router(auth.router)
 api_router.include_router(health.router)
+api_router.include_router(migrations.router)
 api_router.include_router(raffles.router)
 api_router.include_router(tickets.router)
 app.include_router(api_router)

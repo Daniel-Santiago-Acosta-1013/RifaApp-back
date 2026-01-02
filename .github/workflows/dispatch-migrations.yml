@@ -1,0 +1,126 @@
+name: Trigger Infra Migrations
+
+on:
+  workflow_dispatch:
+
+jobs:
+  dispatch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate infra repo
+        env:
+          INFRA_REPO: ${{ vars.INFRA_REPO }}
+        run: |
+          if [ -z "$INFRA_REPO" ]; then
+            echo "INFRA_REPO is not set" >&2
+            exit 1
+          fi
+
+      - name: Dispatch migrations to infra repo and wait
+        env:
+          INFRA_REPO: ${{ vars.INFRA_REPO }}
+          GH_TOKEN: ${{ secrets.INFRA_DISPATCH_TOKEN }}
+          INFRA_REF: "main"
+          WORKFLOW_FILE: "migrate.yml"
+          POLL_INTERVAL: "20"
+          TIMEOUT_SECONDS: "1800"
+        run: |
+          set -euo pipefail
+          if [ -z "$GH_TOKEN" ]; then
+            echo "INFRA_DISPATCH_TOKEN is not set" >&2
+            exit 1
+          fi
+
+          API_BASE="https://api.github.com"
+          START_TS="$(date -u +%s)"
+          DEADLINE=$((START_TS + TIMEOUT_SECONDS))
+
+          curl -sS -X POST \
+            -H "Accept: application/vnd.github+json" \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "$API_BASE/repos/$INFRA_REPO/actions/workflows/$WORKFLOW_FILE/dispatches" \
+            -d '{"ref":"'"${INFRA_REF}"'"}'
+
+          echo "Waiting for infra workflow run to start..."
+          RUN_ID=""
+          while [ -z "$RUN_ID" ]; do
+            NOW="$(date -u +%s)"
+            if [ "$NOW" -ge "$DEADLINE" ]; then
+              echo "Timed out waiting for infra workflow run to start." >&2
+              exit 1
+            fi
+
+            RUNS_JSON="$(curl -sS \
+              -H "Accept: application/vnd.github+json" \
+              -H "Authorization: Bearer $GH_TOKEN" \
+              -H "X-GitHub-Api-Version: 2022-11-28" \
+              "$API_BASE/repos/$INFRA_REPO/actions/workflows/$WORKFLOW_FILE/runs?event=workflow_dispatch&branch=$INFRA_REF&per_page=5")"
+
+            RUN_ID="$(START_TS="$START_TS" RUNS_JSON="$RUNS_JSON" python3 - <<'PY'
+          import datetime
+          import json
+          import os
+          import sys
+
+          data = json.loads(os.environ["RUNS_JSON"])
+          start_ts = int(os.environ["START_TS"])
+
+          def to_epoch(ts):
+              return int(datetime.datetime.fromisoformat(ts.replace("Z", "+00:00")).timestamp())
+
+          for run in data.get("workflow_runs", []):
+              if to_epoch(run["created_at"]) >= start_ts - 5:
+                  print(run["id"])
+                  sys.exit(0)
+          PY
+            )"
+
+            if [ -z "$RUN_ID" ]; then
+              sleep "$POLL_INTERVAL"
+            fi
+          done
+
+          echo "Waiting for infra workflow run $RUN_ID to complete..."
+          while true; do
+            NOW="$(date -u +%s)"
+            if [ "$NOW" -ge "$DEADLINE" ]; then
+              echo "Timed out waiting for infra workflow run to complete." >&2
+              exit 1
+            fi
+
+            RUN_INFO_JSON="$(curl -sS \
+              -H "Accept: application/vnd.github+json" \
+              -H "Authorization: Bearer $GH_TOKEN" \
+              -H "X-GitHub-Api-Version: 2022-11-28" \
+              "$API_BASE/repos/$INFRA_REPO/actions/runs/$RUN_ID")"
+
+            RUN_INFO="$(RUN_INFO_JSON="$RUN_INFO_JSON" python3 - <<'PY'
+          import json
+          import os
+          import sys
+
+          data = json.loads(os.environ["RUN_INFO_JSON"])
+          status = data.get("status", "")
+          conclusion = data.get("conclusion") or ""
+          html_url = data.get("html_url", "")
+          print(f"{status}|{conclusion}|{html_url}")
+          PY
+            )"
+
+            STATUS="${RUN_INFO%%|*}"
+            REST="${RUN_INFO#*|}"
+            CONCLUSION="${REST%%|*}"
+            RUN_URL="${REST#*|}"
+
+            if [ "$STATUS" = "completed" ]; then
+              echo "Infra workflow completed: $CONCLUSION"
+              echo "Run URL: $RUN_URL"
+              if [ "$CONCLUSION" = "success" ]; then
+                exit 0
+              fi
+              exit 1
+            fi
+
+            sleep "$POLL_INTERVAL"
+          done

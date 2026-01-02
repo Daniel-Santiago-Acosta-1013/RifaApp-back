@@ -12,6 +12,29 @@ class HealthResponse(BaseModel):
     time: datetime
 
 
+class MigrationRunResponse(BaseModel):
+    status: str
+    applied_at: datetime
+
+
+class UserRegister(BaseModel):
+    name: str = Field(..., min_length=2, max_length=120)
+    email: EmailStr
+    password: str = Field(..., min_length=8, max_length=128)
+
+
+class UserLogin(BaseModel):
+    email: EmailStr
+    password: str = Field(..., min_length=8, max_length=128)
+
+
+class UserOut(BaseModel):
+    id: str
+    name: str
+    email: EmailStr
+    created_at: datetime
+
+
 class RaffleCreate(BaseModel):
     title: str = Field(..., min_length=3, max_length=120)
     description: Optional[str] = Field(None, max_length=1000)
