@@ -30,6 +30,19 @@ def _ensure_db_password(env: dict) -> None:
     raise RuntimeError("TF_VAR_db_password or DB_PASSWORD is required for Terraform apply")
 
 
+def _load_env_file(env: dict, path: Path) -> None:
+    if not path.exists():
+        return
+    for raw in path.read_text().splitlines():
+        line = raw.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, value = line.split("=", 1)
+        key = key.strip()
+        value = value.strip().strip('"').strip("'")
+        env.setdefault(key, value)
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Deploy RifaApp Lambda + infra using Terraform")
     parser.add_argument("--infra-dir", default=os.getenv("INFRA_DIR"))
@@ -45,6 +58,14 @@ def main() -> int:
     env = os.environ.copy()
     env.setdefault("TF_IN_AUTOMATION", "true")
     env.setdefault("TF_INPUT", "false")
+    env.setdefault("SSL_CERT_FILE", "/etc/ssl/cert.pem")
+    env.setdefault("REQUESTS_CA_BUNDLE", "/etc/ssl/cert.pem")
+
+    poetry_bin = Path.home() / ".local" / "bin" / "poetry"
+    if poetry_bin.exists():
+        env.setdefault("POETRY_BIN", str(poetry_bin))
+
+    _load_env_file(env, repo_root / ".env")
 
     if not args.skip_build:
         _run(["bash", str(repo_root / "scripts" / "build_lambda.sh")], cwd=repo_root, env=env)
