@@ -5,6 +5,7 @@ API de rifas para ejecutarse en AWS Lambda con FastAPI + Mangum.
 ## Requisitos
 - Python 3.11
 - Poetry
+- Terragrunt
 
 ## Instalacion local
 ```
@@ -38,10 +39,10 @@ Genera `lambda_dist/` con las dependencias y el paquete `app/`:
 ./scripts/build_lambda.sh
 ```
 
-Terraform en `../RifaApp-infra/` empaqueta `lambda_dist/` en `lambda.zip`.
+Terragrunt en `../RifaApp-infra/envs/dev/` empaqueta `lambda_dist/` en `lambda.zip`.
 
 ## Deploy local con Poetry
-Este comando construye la Lambda y ejecuta Terraform desde el repo infra:
+Este comando construye la Lambda y ejecuta Terragrunt desde `envs/dev` en el repo infra:
 
 ```
 poetry install
