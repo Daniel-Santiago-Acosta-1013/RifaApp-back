@@ -4,7 +4,10 @@ version = "0.1.0"
 description = "RifaApp Lambda API (FastAPI)"
 authors = ["RifaApp Team"]
 readme = "README.md"
-package-mode = false
+packages = [
+    { include = "app" },
+    { include = "rifaapp_cli" }
+]
 
 [tool.poetry.dependencies]
 python = "^3.11"
@@ -15,6 +18,9 @@ email-validator = "^2.1.1"
 
 [tool.poetry.group.dev.dependencies]
 uvicorn = "^0.30.0"
+
+[tool.poetry.scripts]
+deploy = "rifaapp_cli.deploy:main"
 
 [build-system]
 requires = ["poetry-core>=1.8.0"]

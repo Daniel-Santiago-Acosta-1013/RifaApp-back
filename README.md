@@ -40,6 +40,23 @@ Genera `lambda_dist/` con las dependencias y el paquete `app/`:
 
 Terraform en `../RifaApp-infra/` empaqueta `lambda_dist/` en `lambda.zip`.
 
+## Deploy local con Poetry
+Este comando construye la Lambda y ejecuta Terraform desde el repo infra:
+
+```
+poetry install
+poetry run deploy
+```
+
+Variables requeridas:
+- `AWS_PROFILE` y `AWS_REGION` (o credenciales AWS por env)
+- `TF_VAR_db_password` o `DB_PASSWORD`
+
+Opciones utiles:
+- `poetry run deploy --plan-only`
+- `poetry run deploy --lambda-only`
+- `poetry run deploy --infra-dir /ruta/a/RifaApp-infra`
+
 ## Deploy CI/CD
 Este repo puede notificar al repo de infraestructura para desplegar cambios.
 
