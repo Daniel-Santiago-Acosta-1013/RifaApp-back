@@ -5,7 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.openapi.docs import get_redoc_html, get_swagger_ui_html
 from mangum import Mangum
 
-from app.api.routes import auth, health, migrations, raffles, tickets
+from app.api.routes import auth, health, migrations, purchases, raffles, raffles_v2, tickets
 from app.core.config import settings
 from app.core.logging import configure_logging
 
@@ -37,7 +37,9 @@ api_router.include_router(auth.router)
 api_router.include_router(health.router)
 api_router.include_router(migrations.router)
 api_router.include_router(raffles.router)
+api_router.include_router(raffles_v2.router)
 api_router.include_router(tickets.router)
+api_router.include_router(purchases.router)
 app.include_router(api_router)
 
 

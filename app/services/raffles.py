@@ -58,6 +58,7 @@ def list_raffles(status: Optional[str] = None) -> list[dict]:
         LEFT JOIN (
             SELECT raffle_id, COUNT(*) AS sold
             FROM tickets
+            WHERE status IN ('paid', 'sold')
             GROUP BY raffle_id
         ) t ON t.raffle_id = r.id
     """
@@ -80,6 +81,7 @@ def get_raffle(raffle_id: uuid.UUID) -> dict:
         LEFT JOIN (
             SELECT raffle_id, COUNT(*) AS sold
             FROM tickets
+            WHERE status IN ('paid', 'sold')
             GROUP BY raffle_id
         ) t ON t.raffle_id = r.id
         WHERE r.id = %s
@@ -117,7 +119,13 @@ def draw_raffle(raffle_id: uuid.UUID) -> dict:
                 "winning_number": ticket[2],
             }
         cur.execute(
-            "SELECT id, participant_id, number FROM tickets WHERE raffle_id = %s ORDER BY random() LIMIT 1",
+            """
+            SELECT id, participant_id, number
+            FROM tickets
+            WHERE raffle_id = %s AND status IN ('paid', 'sold')
+            ORDER BY random()
+            LIMIT 1
+            """,
             (raffle_id,),
         )
         ticket = cur.fetchone()

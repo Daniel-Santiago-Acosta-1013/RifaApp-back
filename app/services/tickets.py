@@ -5,7 +5,8 @@ import uuid
 from fastapi import HTTPException
 
 from app.db.connection import fetch_all, run_transaction
-from app.models.schemas import ParticipantCreate, TicketPurchaseRequest
+from app.models.schemas import TicketPurchaseRequest
+from app.services.participants import get_or_create_participant
 
 
 def list_tickets(raffle_id: uuid.UUID) -> list[dict]:
@@ -13,7 +14,7 @@ def list_tickets(raffle_id: uuid.UUID) -> list[dict]:
         """
         SELECT id, participant_id, number, status, purchased_at
         FROM tickets
-        WHERE raffle_id = %s
+        WHERE raffle_id = %s AND status IN ('paid', 'sold')
         ORDER BY number ASC
         """,
         (raffle_id,),
@@ -28,23 +29,6 @@ def list_tickets(raffle_id: uuid.UUID) -> list[dict]:
         }
         for row in rows
     ]
-
-
-def _get_or_create_participant(conn, participant: ParticipantCreate) -> uuid.UUID:
-    cur = conn.cursor()
-    if participant.email:
-        cur.execute("SELECT id FROM participants WHERE email = %s", (participant.email,))
-        row = cur.fetchone()
-        if row:
-            cur.close()
-            return row[0]
-    participant_id = uuid.uuid4()
-    cur.execute(
-        "INSERT INTO participants (id, name, email) VALUES (%s, %s, %s)",
-        (participant_id, participant.name, participant.email),
-    )
-    cur.close()
-    return participant_id
 
 
 def purchase_tickets(raffle_id: uuid.UUID, payload: TicketPurchaseRequest) -> dict:
@@ -70,7 +54,7 @@ def purchase_tickets(raffle_id: uuid.UUID, payload: TicketPurchaseRequest) -> di
         if max_number + payload.quantity > total_tickets:
             cur.close()
             raise HTTPException(status_code=400, detail="Not enough tickets available")
-        participant_id = _get_or_create_participant(conn, payload.participant)
+        participant_id = get_or_create_participant(conn, payload.participant)
         numbers = list(range(max_number + 1, max_number + payload.quantity + 1))
         ticket_ids: list[uuid.UUID] = []
         for number in numbers:
