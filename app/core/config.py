@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 import os
 
 
@@ -18,9 +18,15 @@ class Settings:
     db_user: str = os.getenv("DB_USER", "")
     db_password: str = os.getenv("DB_PASSWORD", "")
     auto_migrate: bool = _as_bool(os.getenv("AUTO_MIGRATE", "false"))
-    cors_allow_origins: list[str] = _split_csv(os.getenv("CORS_ALLOW_ORIGINS", "*"))
-    cors_allow_methods: list[str] = _split_csv(os.getenv("CORS_ALLOW_METHODS", "*"))
-    cors_allow_headers: list[str] = _split_csv(os.getenv("CORS_ALLOW_HEADERS", "*"))
+    cors_allow_origins: list[str] = field(
+        default_factory=lambda: _split_csv(os.getenv("CORS_ALLOW_ORIGINS", "*"))
+    )
+    cors_allow_methods: list[str] = field(
+        default_factory=lambda: _split_csv(os.getenv("CORS_ALLOW_METHODS", "*"))
+    )
+    cors_allow_headers: list[str] = field(
+        default_factory=lambda: _split_csv(os.getenv("CORS_ALLOW_HEADERS", "*"))
+    )
 
 
 settings = Settings()
