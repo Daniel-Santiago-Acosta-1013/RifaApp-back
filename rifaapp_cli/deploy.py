@@ -74,9 +74,14 @@ def main() -> int:
     env.setdefault("SSL_CERT_FILE", "/etc/ssl/cert.pem")
     env.setdefault("REQUESTS_CA_BUNDLE", "/etc/ssl/cert.pem")
 
-    poetry_bin = Path.home() / ".local" / "bin" / "poetry"
-    if poetry_bin.exists():
-        env.setdefault("POETRY_BIN", str(poetry_bin))
+    uv_bin_candidates = [
+        Path.home() / ".local" / "bin" / "uv",
+        Path.home() / ".cargo" / "bin" / "uv",
+    ]
+    for uv_bin in uv_bin_candidates:
+        if uv_bin.exists():
+            env.setdefault("UV_BIN", str(uv_bin))
+            break
 
     _load_env_file(env, repo_root / ".env")
 

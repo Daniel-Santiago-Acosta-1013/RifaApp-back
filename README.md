@@ -4,17 +4,17 @@ API de rifas para ejecutarse en AWS Lambda con FastAPI + Mangum.
 
 ## Requisitos
 - Python 3.11
-- Poetry
+- uv (Astral)
 - Terragrunt
 
 ## Instalacion local
 ```
-poetry install
+uv sync --extra dev
 ```
 
 ## Ejecutar localmente
 ```
-poetry run uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+uv run uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
 Swagger: `http://localhost:8000/rifaapp/docs`
@@ -46,12 +46,12 @@ Genera `lambda_dist/` con las dependencias y el paquete `app/`:
 
 Terragrunt en `../RifaApp-infra/envs/dev/` empaqueta `lambda_dist/` en `lambda.zip`.
 
-## Deploy local con Poetry
+## Deploy local con uv
 Este comando construye la Lambda y ejecuta Terragrunt desde `envs/dev` en el repo infra:
 
 ```
-poetry install
-poetry run deploy
+uv sync --extra dev
+uv run deploy
 ```
 
 Variables requeridas:
@@ -59,9 +59,9 @@ Variables requeridas:
 - `TF_VAR_db_password` o `DB_PASSWORD`
 
 Opciones utiles:
-- `poetry run deploy --plan-only`
-- `poetry run deploy --lambda-only`
-- `poetry run deploy --infra-dir /ruta/a/RifaApp-infra`
+- `uv run deploy --plan-only`
+- `uv run deploy --lambda-only`
+- `uv run deploy --infra-dir /ruta/a/RifaApp-infra`
 
 ## Deploy CI/CD
 Este repo puede notificar al repo de infraestructura para desplegar cambios.

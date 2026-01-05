@@ -3,21 +3,25 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 BUILD_DIR="$ROOT/lambda_dist"
-POETRY_BIN="${POETRY_BIN:-poetry}"
+UV_BIN="${UV_BIN:-uv}"
 
-if [ -x "$POETRY_BIN" ]; then
-  POETRY_CMD="$POETRY_BIN"
-elif command -v "$POETRY_BIN" >/dev/null 2>&1; then
-  POETRY_CMD="$(command -v "$POETRY_BIN")"
+if [ -x "$UV_BIN" ]; then
+  UV_CMD="$UV_BIN"
+elif command -v "$UV_BIN" >/dev/null 2>&1; then
+  UV_CMD="$(command -v "$UV_BIN")"
+elif [ -x "$HOME/.local/bin/uv" ]; then
+  UV_CMD="$HOME/.local/bin/uv"
+elif [ -x "$HOME/.cargo/bin/uv" ]; then
+  UV_CMD="$HOME/.cargo/bin/uv"
 else
-  echo "Poetry is required. Install it with: curl -sSL https://install.python-poetry.org | python3 -" >&2
+  echo "uv is required. Install it with: curl -LsSf https://astral.sh/uv/install.sh | sh" >&2
   exit 1
 fi
 
 rm -rf "$BUILD_DIR"
 mkdir -p "$BUILD_DIR"
 
-"$POETRY_CMD" export -f requirements.txt --without-hashes -o "$BUILD_DIR/requirements.txt"
+"$UV_CMD" pip compile "$ROOT/pyproject.toml" -o "$BUILD_DIR/requirements.txt"
 
 PIP_PLATFORM="${LAMBDA_PLATFORM:-manylinux2014_x86_64}"
 PIP_PYTHON_VERSION="${LAMBDA_PYTHON_VERSION:-311}"

@@ -1,27 +1,28 @@
-[tool.poetry]
+[project]
 name = "rifaapp-api"
 version = "0.1.0"
 description = "RifaApp Lambda API (FastAPI)"
-authors = ["RifaApp Team"]
 readme = "README.md"
-packages = [
-    { include = "app" },
-    { include = "rifaapp_cli" }
+requires-python = ">=3.11"
+authors = [{ name = "RifaApp Team" }]
+dependencies = [
+    "fastapi>=0.111.0,<0.112.0",
+    "mangum>=0.17.0,<0.18.0",
+    "pg8000>=1.31.2,<2.0.0",
+    "email-validator>=2.1.1,<3.0.0",
 ]
 
-[tool.poetry.dependencies]
-python = "^3.11"
-fastapi = "^0.111.0"
-mangum = "^0.17.0"
-pg8000 = "^1.31.2"
-email-validator = "^2.1.1"
+[project.optional-dependencies]
+dev = [
+    "uvicorn>=0.30.0,<0.31.0",
+]
 
-[tool.poetry.group.dev.dependencies]
-uvicorn = "^0.30.0"
-
-[tool.poetry.scripts]
+[project.scripts]
 deploy = "rifaapp_cli.deploy:main"
 
 [build-system]
-requires = ["poetry-core>=1.8.0"]
-build-backend = "poetry.core.masonry.api"
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = ["app", "rifaapp_cli"]
