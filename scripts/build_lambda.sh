@@ -37,4 +37,17 @@ python3 -m pip install --upgrade \
   -r "$BUILD_DIR/requirements.txt" \
   -t "$BUILD_DIR"
 
+if [ -f "$ROOT/sqitch.conf" ]; then
+  cp "$ROOT/sqitch.conf" "$BUILD_DIR/sqitch.conf"
+fi
+
+if [ -f "$ROOT/sqitch.plan" ]; then
+  cp "$ROOT/sqitch.plan" "$BUILD_DIR/sqitch.plan"
+fi
+
+if [ -d "$ROOT/sqitch" ]; then
+  rm -rf "$BUILD_DIR/sqitch"
+  cp -R "$ROOT/sqitch" "$BUILD_DIR/sqitch"
+fi
+
 cp -R "$ROOT/app" "$BUILD_DIR/app"

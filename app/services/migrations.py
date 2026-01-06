@@ -2,11 +2,9 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 
-from app.db.connection import get_conn
-from app.db.schema import ensure_schema
+from app.db.migrations import deploy_migrations
 
 
 def run_migrations() -> dict:
-    conn = get_conn()
-    ensure_schema(conn)
+    deploy_migrations()
     return {"status": "ok", "applied_at": datetime.now(timezone.utc)}

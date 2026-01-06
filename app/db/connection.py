@@ -6,11 +6,9 @@ from typing import Callable, Optional
 import pg8000.dbapi as pgapi
 
 from app.core.config import db_configured, settings
-from app.db.schema import ensure_schema
+from app.db.migrations import ensure_migrations
 
 _DB_LOCAL = threading.local()
-_SCHEMA_READY = False
-_SCHEMA_LOCK = threading.Lock()
 
 
 def _connect():
@@ -23,17 +21,6 @@ def _connect():
         user=settings.db_user,
         password=settings.db_password,
     )
-
-
-def _ensure_schema(conn) -> None:
-    global _SCHEMA_READY
-    if _SCHEMA_READY:
-        return
-    with _SCHEMA_LOCK:
-        if _SCHEMA_READY:
-            return
-        ensure_schema(conn)
-        _SCHEMA_READY = True
 
 
 def get_conn():
@@ -52,7 +39,7 @@ def get_conn():
             conn.autocommit = True
             _DB_LOCAL.conn = conn
     if settings.auto_migrate:
-        _ensure_schema(conn)
+        ensure_migrations()
     return conn
 
 
@@ -84,7 +71,7 @@ def run_transaction(handler: Callable):
     try:
         conn.autocommit = False
         if settings.auto_migrate:
-            _ensure_schema(conn)
+            ensure_migrations()
         result = handler(conn)
         conn.commit()
         return result

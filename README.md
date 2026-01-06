@@ -5,7 +5,16 @@ API de rifas para ejecutarse en AWS Lambda con FastAPI + Mangum.
 ## Requisitos
 - Python 3.11
 - uv (Astral)
+- Sqitch
 - Terragrunt
+
+Instalar Sqitch (macOS):
+```
+brew install cpanminus libpq
+env PATH="/opt/homebrew/opt/libpq/bin:$PATH" cpanm --notest App::Sqitch
+cpanm --local-lib=~/perl5 local::lib
+eval "$(perl -I ~/perl5/lib/perl5 -Mlocal::lib)"
+```
 
 ## Instalacion local
 ```
@@ -27,7 +36,7 @@ OpenAPI: `http://localhost:8000/rifaapp/openapi.json`
 - `DB_USER`
 - `DB_PASSWORD`
 
-Para crear tablas automaticamente en desarrollo:
+Para crear tablas automaticamente en desarrollo (usa `sqitch deploy`):
 ```
 export AUTO_MIGRATE=true
 ```
@@ -36,6 +45,14 @@ Para ejecutar migraciones manuales en CI/CD, se expone:
 ```
 POST /rifaapp/migrations/run
 ```
+
+Sqitch toma los cambios desde `sqitch/` y requiere tener el binario disponible
+en el entorno (PATH o `SQITCH_BIN`). Opcionalmente puedes definir:
+- `SQITCH_TARGET`: override de la conexion (ej. `db:pg://user@host:5432/dbname`)
+- `SQITCH_DIR`: directorio raiz donde viven `sqitch.conf` y `sqitch.plan`
+
+En Lambda, provee `sqitch` via layer o runtime base si usas `AUTO_MIGRATE` o
+el endpoint de migraciones.
 
 ## Build para Lambda
 Genera `lambda_dist/` con las dependencias y el paquete `app/`:
