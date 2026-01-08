@@ -1,18 +1,23 @@
-name: Trigger Infra Migrations
+name: Rollback Backend (Infra Deploy)
 
 on:
   workflow_dispatch:
     inputs:
-      backend_ref:
-        description: "Ref del backend para migraciones (branch o tag). Opcional."
-        required: false
+      tag_name:
+        description: "Tag del backend a restaurar (formato: vX.Y.Z)"
+        required: true
         type: string
 
 jobs:
-  dispatch:
+  rollback:
     runs-on: ubuntu-latest
     steps:
-      - name: Validate infra repo
+      - name: Checkout backend
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Validate rollback input
         env:
           INFRA_REPO: ${{ vars.INFRA_REPO }}
         run: |
@@ -20,16 +25,25 @@ jobs:
             echo "INFRA_REPO is not set" >&2
             exit 1
           fi
+          if ! [[ "${{ inputs.tag_name }}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "tag_name must follow vX.Y.Z format (example: v1.2.3)" >&2
+            exit 1
+          fi
+          git fetch --tags
+          if ! git rev-parse "${{ inputs.tag_name }}" >/dev/null 2>&1; then
+            echo "Tag does not exist in backend repo: ${{ inputs.tag_name }}" >&2
+            exit 1
+          fi
 
-      - name: Dispatch migrations to infra repo and wait
+      - name: Dispatch infra deploy with backend_ref and wait
         env:
           INFRA_REPO: ${{ vars.INFRA_REPO }}
           GH_TOKEN: ${{ secrets.INFRA_DISPATCH_TOKEN }}
           INFRA_REF: "main"
-          WORKFLOW_FILE: "migrate.yml"
+          WORKFLOW_FILE: "deploy.yml"
           POLL_INTERVAL: "20"
           TIMEOUT_SECONDS: "1800"
-          BACKEND_REF: ${{ inputs.backend_ref }}
+          BACKEND_REF: ${{ inputs.tag_name }}
         run: |
           set -euo pipefail
           if [ -z "$GH_TOKEN" ]; then
@@ -45,20 +59,26 @@ jobs:
           import json
           import os
 
-          payload = {"ref": os.environ["INFRA_REF"], "inputs": {}}
-          backend_ref = os.environ.get("BACKEND_REF") or ""
-          if backend_ref:
-              payload["inputs"]["backend_ref"] = backend_ref
+          payload = {
+              "ref": os.environ["INFRA_REF"],
+              "inputs": {"backend_ref": os.environ["BACKEND_REF"]},
+          }
           print(json.dumps(payload))
           PY
           )"
 
-          curl -sS -X POST \
+          HTTP_CODE="$(curl -sS -o /tmp/dispatch_resp.json -w "%{http_code}" -X POST \
             -H "Accept: application/vnd.github+json" \
             -H "Authorization: Bearer $GH_TOKEN" \
             -H "X-GitHub-Api-Version: 2022-11-28" \
             "$API_BASE/repos/$INFRA_REPO/actions/workflows/$WORKFLOW_FILE/dispatches" \
-            -d "$DISPATCH_PAYLOAD"
+            -d "$DISPATCH_PAYLOAD")"
+
+          if [ "$HTTP_CODE" != "204" ]; then
+            echo "Failed to dispatch infra workflow. HTTP $HTTP_CODE" >&2
+            cat /tmp/dispatch_resp.json >&2 || true
+            exit 1
+          fi
 
           echo "Waiting for infra workflow run to start..."
           RUN_ID=""
