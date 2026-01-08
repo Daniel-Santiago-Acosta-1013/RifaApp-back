@@ -40,7 +40,7 @@ jobs:
           INFRA_REPO: ${{ vars.INFRA_REPO }}
           GH_TOKEN: ${{ secrets.INFRA_DISPATCH_TOKEN }}
           INFRA_REF: "main"
-          WORKFLOW_FILE: "deploy.yml"
+          WORKFLOW_FILE: "rollback.yml"
           POLL_INTERVAL: "20"
           TIMEOUT_SECONDS: "1800"
           BACKEND_REF: ${{ inputs.tag_name }}
