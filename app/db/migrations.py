@@ -7,6 +7,8 @@ from pathlib import Path
 from shutil import which
 from urllib.parse import quote
 
+import pg8000.dbapi as pgapi
+
 from app.core.config import db_configured, settings
 
 _MIGRATIONS_READY = False
@@ -50,10 +52,66 @@ def _run_sqitch(command: str) -> None:
     )
 
 
+def _connect_direct():
+    if not db_configured():
+        raise RuntimeError("Database configuration is missing")
+    return pgapi.connect(
+        host=settings.db_host,
+        port=settings.db_port,
+        database=settings.db_name,
+        user=settings.db_user,
+        password=settings.db_password,
+    )
+
+
+def _load_plan_entries(repo_root: Path) -> list[str]:
+    plan_path = repo_root / "sqitch.plan"
+    if not plan_path.exists():
+        raise RuntimeError("sqitch.plan not found for fallback migrations")
+    entries: list[str] = []
+    for raw in plan_path.read_text().splitlines():
+        line = raw.strip()
+        if not line or line.startswith("%") or line.startswith("#"):
+            continue
+        name = line.split()[0]
+        entries.append(name)
+    if not entries:
+        raise RuntimeError("No migrations found in sqitch.plan")
+    return entries
+
+
+def _run_sql_migrations() -> None:
+    repo_root = Path(os.getenv("SQITCH_DIR", Path(__file__).resolve().parents[2])).resolve()
+    deploy_dir = repo_root / "sqitch" / "deploy"
+    entries = _load_plan_entries(repo_root)
+    conn = _connect_direct()
+    try:
+        conn.autocommit = True
+        cur = conn.cursor()
+        for name in entries:
+            sql_path = deploy_dir / f"{name}.sql"
+            if not sql_path.exists():
+                raise RuntimeError(f"Missing migration file: {sql_path}")
+            cur.execute(sql_path.read_text())
+        cur.close()
+    finally:
+        conn.close()
+
+
+def _deploy_migrations() -> None:
+    try:
+        _run_sqitch("deploy")
+    except RuntimeError as exc:
+        if "Sqitch not found" in str(exc):
+            _run_sql_migrations()
+            return
+        raise
+
+
 def deploy_migrations() -> None:
     global _MIGRATIONS_READY
     with _MIGRATIONS_LOCK:
-        _run_sqitch("deploy")
+        _deploy_migrations()
         _MIGRATIONS_READY = True
 
 
@@ -64,5 +122,5 @@ def ensure_migrations() -> None:
     with _MIGRATIONS_LOCK:
         if _MIGRATIONS_READY:
             return
-        _run_sqitch("deploy")
+        _deploy_migrations()
         _MIGRATIONS_READY = True

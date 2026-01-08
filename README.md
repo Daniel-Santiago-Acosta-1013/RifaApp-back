@@ -52,7 +52,8 @@ en el entorno (PATH o `SQITCH_BIN`). Opcionalmente puedes definir:
 - `SQITCH_DIR`: directorio raiz donde viven `sqitch.conf` y `sqitch.plan`
 
 En Lambda, provee `sqitch` via layer o runtime base si usas `AUTO_MIGRATE` o
-el endpoint de migraciones.
+el endpoint de migraciones. Si `sqitch` no esta disponible, el backend ejecuta
+los SQL de `sqitch/deploy` directamente como fallback.
 
 ## Build para Lambda
 Genera `lambda_dist/` con las dependencias y el paquete `app/`:
