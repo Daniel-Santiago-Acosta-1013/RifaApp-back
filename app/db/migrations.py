@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import os
 import subprocess
 import threading
@@ -10,6 +11,8 @@ from urllib.parse import quote
 import pg8000.dbapi as pgapi
 
 from app.core.config import db_configured, settings
+
+logger = logging.getLogger(__name__)
 
 _MIGRATIONS_READY = False
 _MIGRATIONS_LOCK = threading.Lock()
@@ -44,12 +47,17 @@ def _run_sqitch(command: str) -> None:
     env = os.environ.copy()
     env.update(extra_env)
     repo_root = Path(os.getenv("SQITCH_DIR", Path(__file__).resolve().parents[2])).resolve()
-    subprocess.run(
-        [sqitch_cmd, command, "--target", target],
-        cwd=str(repo_root),
-        env=env,
-        check=True,
-    )
+    logger.info("Running sqitch %s", command)
+    try:
+        subprocess.run(
+            [sqitch_cmd, command, "--target", target],
+            cwd=str(repo_root),
+            env=env,
+            check=True,
+        )
+    except subprocess.CalledProcessError as exc:
+        logger.exception("Sqitch failed with exit code %s", exc.returncode)
+        raise
 
 
 def _connect_direct():
@@ -84,6 +92,8 @@ def _run_sql_migrations() -> None:
     repo_root = Path(os.getenv("SQITCH_DIR", Path(__file__).resolve().parents[2])).resolve()
     deploy_dir = repo_root / "sqitch" / "deploy"
     entries = _load_plan_entries(repo_root)
+    logger.warning("Sqitch not available. Running SQL migrations directly.")
+    logger.info("Applying %s migration files from %s", len(entries), deploy_dir)
     conn = _connect_direct()
     try:
         conn.autocommit = True
@@ -92,6 +102,7 @@ def _run_sql_migrations() -> None:
             sql_path = deploy_dir / f"{name}.sql"
             if not sql_path.exists():
                 raise RuntimeError(f"Missing migration file: {sql_path}")
+            logger.info("Applying migration %s", sql_path.name)
             cur.execute(sql_path.read_text())
         cur.close()
     finally:
@@ -105,6 +116,9 @@ def _deploy_migrations() -> None:
         if "Sqitch not found" in str(exc):
             _run_sql_migrations()
             return
+        logger.exception("Migration failed before sqitch execution")
+        raise
+    except subprocess.CalledProcessError:
         raise
 
 
