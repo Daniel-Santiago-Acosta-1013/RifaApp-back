@@ -1,4 +1,4 @@
-name: Rollback Backend (Infra Deploy)
+name: Rollback Backend (Infra Rollback)
 
 on:
   workflow_dispatch:
