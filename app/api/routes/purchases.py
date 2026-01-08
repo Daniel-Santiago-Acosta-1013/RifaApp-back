@@ -4,7 +4,7 @@ from fastapi import APIRouter
 
 from app.api.dependencies import require_db
 from app.models.schemas import PurchaseOut
-from app.services import purchases
+from app.cqrs.queries import purchases
 
 router = APIRouter(prefix="/v2/participants", tags=["purchases"])
 

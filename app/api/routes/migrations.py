@@ -2,7 +2,7 @@ from fastapi import APIRouter
 
 from app.api.dependencies import require_db
 from app.models.schemas import MigrationRunResponse
-from app.services import migrations
+from app.cqrs.commands import migrations
 
 router = APIRouter(prefix="/migrations", tags=["migrations"])
 

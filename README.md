@@ -1,6 +1,6 @@
 # RifaApp backend (FastAPI)
 
-API de rifas para ejecutarse en AWS Lambda con FastAPI + Mangum.
+API de rifas para ejecutarse en AWS Lambda con FastAPI + Mangum. Solo se expone la versión v2 de la API.
 
 ## Requisitos
 - Python 3.11
@@ -91,18 +91,30 @@ Configura en GitHub (repo backend):
 ## Estructura
 - `app/main.py`: instancia FastAPI y handler para Lambda
 - `app/api/routes/`: endpoints
-- `app/services/`: logica de negocio
+- `app/cqrs/commands/`: write-side (comandos)
+- `app/cqrs/queries/`: read-side (consultas)
 - `app/db/`: conexion y schema
 - `app/models/`: esquemas Pydantic
+- `sqitch/`: migraciones (write model + read model)
+
+## CQRS (fuerte)
+- Write model: `raffles`, `tickets`, `purchases`, `participants`, `users`
+- Read model: `raffles_read`, `raffle_numbers_read`, `purchases_read`
+- Las proyecciones del read model se actualizan **sincrónicamente en la misma transacción** que los comandos.
+- Las queries solo leen del read model.
+- La migración `cqrs_read_model` crea y hace backfill del read model.
 
 ## Endpoints principales
 - `GET /rifaapp/health`
 - `POST /rifaapp/auth/register`
 - `POST /rifaapp/auth/login`
 - `POST /rifaapp/migrations/run`
-- `POST /rifaapp/raffles`
-- `GET /rifaapp/raffles`
-- `GET /rifaapp/raffles/{raffle_id}`
-- `POST /rifaapp/raffles/{raffle_id}/tickets`
-- `GET /rifaapp/raffles/{raffle_id}/tickets`
-- `POST /rifaapp/raffles/{raffle_id}/draw`
+- `POST /rifaapp/v2/raffles`
+- `GET /rifaapp/v2/raffles`
+- `GET /rifaapp/v2/raffles/{raffle_id}`
+- `GET /rifaapp/v2/raffles/{raffle_id}/numbers`
+- `POST /rifaapp/v2/raffles/{raffle_id}/reservations`
+- `POST /rifaapp/v2/raffles/{raffle_id}/confirm`
+- `POST /rifaapp/v2/raffles/{raffle_id}/release`
+- `POST /rifaapp/v2/raffles/{raffle_id}/draw`
+- `GET /rifaapp/v2/participants/{participant_id}/purchases`
