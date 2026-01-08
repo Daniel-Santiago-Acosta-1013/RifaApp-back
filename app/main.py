@@ -41,17 +41,30 @@ api_router.include_router(purchases.router)
 app.include_router(api_router)
 
 
+def _docs_base_path(request: Request) -> str:
+    root_path = request.scope.get("root_path", "").rstrip("/")
+    if root_path:
+        return root_path
+    if api_gateway_base_path:
+        return api_gateway_base_path.rstrip("/")
+    path = request.url.path.rstrip("/")
+    suffix = f"{API_PREFIX}/docs"
+    if path.endswith(suffix):
+        return path[: -len(suffix)]
+    return ""
+
+
 @app.get(f"{API_PREFIX}/docs", include_in_schema=False)
 def swagger_ui(request: Request):
-    root_path = request.scope.get("root_path", "").rstrip("/")
-    openapi_url = f"{root_path}{app.openapi_url}"
+    base_path = _docs_base_path(request)
+    openapi_url = f"{base_path}{app.openapi_url}" if base_path else app.openapi_url
     return get_swagger_ui_html(openapi_url=openapi_url, title=f"{app.title} - Swagger UI")
 
 
 @app.get(f"{API_PREFIX}/redoc", include_in_schema=False)
 def redoc(request: Request):
-    root_path = request.scope.get("root_path", "").rstrip("/")
-    openapi_url = f"{root_path}{app.openapi_url}"
+    base_path = _docs_base_path(request)
+    openapi_url = f"{base_path}{app.openapi_url}" if base_path else app.openapi_url
     return get_redoc_html(openapi_url=openapi_url, title=f"{app.title} - ReDoc")
 
 handler = Mangum(app, api_gateway_base_path=api_gateway_base_path or None)
