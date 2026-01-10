@@ -1,8 +1,11 @@
 import os
+import traceback
 
-from fastapi import APIRouter, FastAPI, Request
+from fastapi import APIRouter, FastAPI, HTTPException, Request
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.openapi.docs import get_redoc_html, get_swagger_ui_html
+from fastapi.responses import JSONResponse
 from mangum import Mangum
 
 from app.api.routes import auth, health, migrations, purchases, raffles_v2
@@ -39,6 +42,35 @@ api_router.include_router(migrations.router)
 api_router.include_router(raffles_v2.router)
 api_router.include_router(purchases.router)
 app.include_router(api_router)
+
+
+@app.exception_handler(HTTPException)
+def http_exception_handler(_: Request, exc: HTTPException):
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={"detail": exc.detail, "type": "http_error"},
+    )
+
+
+@app.exception_handler(RequestValidationError)
+def validation_exception_handler(_: Request, exc: RequestValidationError):
+    return JSONResponse(
+        status_code=422,
+        content={"detail": exc.errors(), "message": "Validation error", "type": "validation_error"},
+    )
+
+
+@app.exception_handler(Exception)
+def unhandled_exception_handler(_: Request, exc: Exception):
+    if settings.expose_errors:
+        detail = {
+            "type": exc.__class__.__name__,
+            "message": str(exc) or "Unhandled error",
+            "trace": traceback.format_exc(),
+        }
+    else:
+        detail = "Internal Server Error"
+    return JSONResponse(status_code=500, content={"detail": detail, "type": "server_error"})
 
 
 def _docs_base_path(request: Request) -> str:

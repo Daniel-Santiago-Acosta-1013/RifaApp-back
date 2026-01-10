@@ -27,6 +27,7 @@ class Settings:
     cors_allow_headers: list[str] = field(
         default_factory=lambda: _split_csv(os.getenv("CORS_ALLOW_HEADERS", "*"))
     )
+    expose_errors: bool = _as_bool(os.getenv("EXPOSE_ERRORS", "true"))
 
 
 settings = Settings()
