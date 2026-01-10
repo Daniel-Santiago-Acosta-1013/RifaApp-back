@@ -43,9 +43,9 @@ def _seed_raffle_numbers(
                NULL,
                NULL,
                NULL,
-               CASE WHEN %s IS NULL THEN n::text ELSE lpad(n::text, %s, '0') END,
+               CASE WHEN %s::int IS NULL THEN n::text ELSE lpad(n::text, %s::int, '0') END,
                now()
-        FROM generate_series(%s, %s) AS n
+        FROM generate_series(%s::int, %s::int) AS n
         """,
         (raffle_id, number_padding, number_padding, number_start, number_end),
     )
