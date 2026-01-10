@@ -38,6 +38,15 @@ def update_raffle(
     return raffles_commands.update_raffle(raffle_id, payload, user_id)
 
 
+@router.delete("/{raffle_id}")
+def delete_raffle(
+    raffle_id: uuid.UUID,
+    user_id: Optional[str] = Header(None, alias="X-User-Id"),
+):
+    require_db()
+    return raffles_commands.delete_raffle(raffle_id, user_id)
+
+
 @router.get("", response_model=list[RaffleOutV2])
 def list_raffles(status: Optional[str] = Query(None, description="Filter by status")):
     require_db()

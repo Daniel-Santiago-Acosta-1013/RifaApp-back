@@ -236,6 +236,36 @@ def update_raffle(raffle_id: uuid.UUID, payload: RaffleUpdateV2, actor_id: Optio
     return run_transaction(_handler)
 
 
+def delete_raffle(raffle_id: uuid.UUID, actor_id: Optional[str]) -> dict:
+    if not actor_id:
+        raise HTTPException(status_code=401, detail="Missing user id")
+    try:
+        editor_id = uuid.UUID(actor_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail="Invalid user id") from exc
+
+    def _handler(conn):
+        cur = conn.cursor()
+        cur.execute("SELECT owner_id FROM raffles WHERE id = %s FOR UPDATE", (raffle_id,))
+        row = cur.fetchone()
+        if not row:
+            cur.close()
+            raise HTTPException(status_code=404, detail="Raffle not found")
+        owner_id = row[0]
+        if owner_id is None or owner_id != editor_id:
+            cur.close()
+            raise HTTPException(status_code=403, detail="Not allowed to delete this raffle")
+
+        cur.execute("DELETE FROM purchases_read WHERE raffle_id = %s", (raffle_id,))
+        cur.execute("DELETE FROM raffle_numbers_read WHERE raffle_id = %s", (raffle_id,))
+        cur.execute("DELETE FROM raffles_read WHERE id = %s", (raffle_id,))
+        cur.execute("DELETE FROM raffles WHERE id = %s", (raffle_id,))
+        cur.close()
+        return {"status": "deleted", "raffle_id": str(raffle_id)}
+
+    return run_transaction(_handler)
+
+
 def reserve_numbers(raffle_id: uuid.UUID, payload: ReservationRequest) -> dict:
     numbers = payload.numbers
     if len(set(numbers)) != len(numbers):
