@@ -83,7 +83,7 @@ def create_raffle(payload: RaffleCreateV2) -> dict:
             ),
         )
         row = cur.fetchone()
-        number_start = row[9] or 1
+        number_start = 1 if row[9] is None else row[9]
         total_tickets = row[5]
         number_end = number_start + total_tickets - 1
         number_padding = row[10]
@@ -161,7 +161,7 @@ def reserve_numbers(raffle_id: uuid.UUID, payload: ReservationRequest) -> dict:
         if status not in ("open", "published"):
             cur.close()
             raise HTTPException(status_code=400, detail="Raffle is not open for reservations")
-        number_start = number_start or 1
+        number_start = 1 if number_start is None else number_start
         number_end = number_start + total_tickets - 1
         for number in numbers:
             if number < number_start or number > number_end:

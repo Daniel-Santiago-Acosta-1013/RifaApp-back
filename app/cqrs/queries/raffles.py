@@ -114,8 +114,10 @@ def list_numbers(raffle_id: uuid.UUID, offset: int = 0, limit: Optional[int] = N
     if not raffle:
         raise HTTPException(status_code=404, detail="Raffle not found")
     total_tickets = raffle["total_tickets"]
-    number_start = raffle.get("number_start") or 1
-    number_end = raffle.get("number_end") or (number_start + total_tickets - 1)
+    raw_number_start = raffle.get("number_start")
+    number_start = 1 if raw_number_start is None else raw_number_start
+    raw_number_end = raffle.get("number_end")
+    number_end = (number_start + total_tickets - 1) if raw_number_end is None else raw_number_end
     total_numbers = total_tickets
     if limit is None:
         limit = total_numbers
