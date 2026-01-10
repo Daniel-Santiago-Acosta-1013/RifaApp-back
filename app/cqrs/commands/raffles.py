@@ -9,7 +9,7 @@ from fastapi import HTTPException
 
 from app.cqrs.commands.participants import get_or_create_participant
 from app.db.connection import run_transaction
-from app.models.schemas import PurchaseConfirmRequest, RaffleCreateV2, ReservationRequest
+from app.models.schemas import PurchaseConfirmRequest, RaffleCreateV2, RaffleUpdateV2, ReservationRequest
 
 MAX_RESERVATION_MINUTES = 30
 
@@ -21,6 +21,28 @@ def _normalize_status(status: Optional[str]) -> str:
     if normalized == "published":
         return "open"
     return normalized
+
+
+def _raffle_out_from_row(row: dict) -> dict:
+    return {
+        "id": str(row["id"]),
+        "title": row["title"],
+        "description": row.get("description"),
+        "ticket_price": row["ticket_price"],
+        "currency": row["currency"],
+        "total_tickets": row["total_tickets"],
+        "tickets_sold": row.get("tickets_sold", 0) or 0,
+        "tickets_reserved": row.get("tickets_reserved", 0) or 0,
+        "status": row["status"],
+        "draw_at": row.get("draw_at"),
+        "winner_ticket_id": str(row["winner_ticket_id"]) if row.get("winner_ticket_id") else None,
+        "number_start": row["number_start"],
+        "number_end": row["number_end"],
+        "number_padding": row.get("number_padding"),
+        "owner_id": str(row["owner_id"]) if row.get("owner_id") else None,
+        "created_at": row["created_at"],
+        "updated_at": row["updated_at"],
+    }
 
 
 def _seed_raffle_numbers(
@@ -63,11 +85,11 @@ def create_raffle(payload: RaffleCreateV2) -> dict:
             """
             INSERT INTO raffles (
                 id, title, description, ticket_price, currency, total_tickets,
-                status, draw_at, number_start, number_padding
-            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                status, draw_at, number_start, number_padding, owner_id
+            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             RETURNING id, title, description, ticket_price, currency, total_tickets,
                       status, draw_at, winner_ticket_id, number_start, number_padding,
-                      created_at, updated_at
+                      owner_id, created_at, updated_at
             """,
             (
                 raffle_id,
@@ -80,6 +102,7 @@ def create_raffle(payload: RaffleCreateV2) -> dict:
                 payload.draw_at,
                 payload.number_start,
                 payload.number_padding,
+                payload.owner_id,
             ),
         )
         row = cur.fetchone()
@@ -92,8 +115,8 @@ def create_raffle(payload: RaffleCreateV2) -> dict:
             INSERT INTO raffles_read (
                 id, title, description, ticket_price, currency, total_tickets,
                 status, draw_at, winner_ticket_id, number_start, number_end,
-                number_padding, created_at, updated_at
-            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                number_padding, owner_id, created_at, updated_at
+            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             """,
             (
                 row[0],
@@ -110,6 +133,7 @@ def create_raffle(payload: RaffleCreateV2) -> dict:
                 number_padding,
                 row[11],
                 row[12],
+                row[13],
             ),
         )
         _seed_raffle_numbers(cur, raffle_id, number_start, number_end, number_padding)
@@ -129,9 +153,85 @@ def create_raffle(payload: RaffleCreateV2) -> dict:
             "number_start": number_start,
             "number_end": number_end,
             "number_padding": number_padding,
-            "created_at": row[11],
-            "updated_at": row[12],
+            "owner_id": str(row[11]) if row[11] else None,
+            "created_at": row[12],
+            "updated_at": row[13],
         }
+
+    return run_transaction(_handler)
+
+
+def update_raffle(raffle_id: uuid.UUID, payload: RaffleUpdateV2, actor_id: Optional[str]) -> dict:
+    if not actor_id:
+        raise HTTPException(status_code=401, detail="Missing user id")
+    try:
+        editor_id = uuid.UUID(actor_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail="Invalid user id") from exc
+
+    data = payload.dict(exclude_unset=True)
+    if "status" in data:
+        data["status"] = _normalize_status(data["status"])
+        if data["status"] not in ("open", "draft", "closed", "cancelled", "drawn"):
+            raise HTTPException(status_code=400, detail="Invalid raffle status")
+    if not data:
+        raise HTTPException(status_code=400, detail="No fields to update")
+
+    def _handler(conn):
+        cur = conn.cursor()
+        cur.execute("SELECT owner_id FROM raffles WHERE id = %s FOR UPDATE", (raffle_id,))
+        row = cur.fetchone()
+        if not row:
+            cur.close()
+            raise HTTPException(status_code=404, detail="Raffle not found")
+        owner_id = row[0]
+        if owner_id is None or owner_id != editor_id:
+            cur.close()
+            raise HTTPException(status_code=403, detail="Not allowed to edit this raffle")
+
+        set_clauses = []
+        params: list = []
+        for field in ("title", "description", "draw_at", "status"):
+            if field in data:
+                set_clauses.append(f"{field} = %s")
+                params.append(data[field])
+        set_clauses.append("updated_at = now()")
+        params.append(raffle_id)
+        set_clause = ", ".join(set_clauses)
+        cur.execute(f"UPDATE raffles SET {set_clause} WHERE id = %s", params)
+        cur.execute(f"UPDATE raffles_read SET {set_clause} WHERE id = %s", params)
+
+        cur.execute(
+            """
+            SELECT r.id, r.title, r.description, r.ticket_price, r.currency, r.total_tickets,
+                   r.status, r.draw_at, r.winner_ticket_id, r.number_start, r.number_end,
+                   r.number_padding, r.owner_id, r.created_at, r.updated_at,
+                   COALESCE(s.sold, 0) AS tickets_sold,
+                   COALESCE(res.reserved, 0) AS tickets_reserved
+            FROM raffles_read r
+            LEFT JOIN (
+                SELECT raffle_id, COUNT(*) AS sold
+                FROM raffle_numbers_read
+                WHERE status = 'sold'
+                GROUP BY raffle_id
+            ) s ON s.raffle_id = r.id
+            LEFT JOIN (
+                SELECT raffle_id, COUNT(*) AS reserved
+                FROM raffle_numbers_read
+                WHERE status = 'reserved' AND reserved_until > now()
+                GROUP BY raffle_id
+            ) res ON res.raffle_id = r.id
+            WHERE r.id = %s
+            """,
+            (raffle_id,),
+        )
+        row = cur.fetchone()
+        if not row:
+            cur.close()
+            raise HTTPException(status_code=404, detail="Raffle not found")
+        columns = [col[0] for col in cur.description]
+        cur.close()
+        return _raffle_out_from_row(dict(zip(columns, row)))
 
     return run_transaction(_handler)
 

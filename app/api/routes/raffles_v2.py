@@ -1,7 +1,7 @@
 import uuid
 from typing import Optional
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Header, Query
 
 from app.api.dependencies import require_db
 from app.models.schemas import (
@@ -9,6 +9,7 @@ from app.models.schemas import (
     PurchaseConfirmRequest,
     PurchaseConfirmResponse,
     RaffleCreateV2,
+    RaffleUpdateV2,
     RaffleNumbersResponse,
     RaffleOutV2,
     ReservationReleaseRequest,
@@ -25,6 +26,16 @@ router = APIRouter(prefix="/v2/raffles", tags=["raffles-v2"])
 def create_raffle(payload: RaffleCreateV2):
     require_db()
     return raffles_commands.create_raffle(payload)
+
+
+@router.patch("/{raffle_id}", response_model=RaffleOutV2)
+def update_raffle(
+    raffle_id: uuid.UUID,
+    payload: RaffleUpdateV2,
+    user_id: Optional[str] = Header(None, alias="X-User-Id"),
+):
+    require_db()
+    return raffles_commands.update_raffle(raffle_id, payload, user_id)
 
 
 @router.get("", response_model=list[RaffleOutV2])

@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 from decimal import Decimal
 from typing import Optional
+from uuid import UUID
 
 from pydantic import BaseModel, EmailStr, Field
 
@@ -57,6 +58,14 @@ class RaffleCreateV2(BaseModel):
     number_start: int = Field(1, ge=0)
     number_padding: Optional[int] = Field(None, ge=1, le=6)
     status: Optional[str] = Field("open", max_length=20)
+    owner_id: Optional[UUID] = None
+
+
+class RaffleUpdateV2(BaseModel):
+    title: Optional[str] = Field(None, min_length=3, max_length=120)
+    description: Optional[str] = Field(None, max_length=1000)
+    draw_at: Optional[datetime] = None
+    status: Optional[str] = Field(None, max_length=20)
 
 
 class RaffleOutV2(BaseModel):
@@ -74,6 +83,7 @@ class RaffleOutV2(BaseModel):
     number_start: int
     number_end: int
     number_padding: Optional[int]
+    owner_id: Optional[str]
     created_at: datetime
     updated_at: datetime
 

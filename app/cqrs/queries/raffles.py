@@ -34,6 +34,7 @@ def _raffle_row(row: dict) -> dict:
         "number_start": row["number_start"],
         "number_end": row["number_end"],
         "number_padding": row.get("number_padding"),
+        "owner_id": str(row["owner_id"]) if row.get("owner_id") else None,
         "created_at": row["created_at"],
         "updated_at": row["updated_at"],
     }
@@ -44,7 +45,7 @@ def list_raffles(status: Optional[str] = None) -> list[dict]:
     sql = """
         SELECT r.id, r.title, r.description, r.ticket_price, r.currency, r.total_tickets,
                r.status, r.draw_at, r.winner_ticket_id, r.number_start, r.number_end,
-               r.number_padding, r.created_at, r.updated_at,
+               r.number_padding, r.owner_id, r.created_at, r.updated_at,
                COALESCE(s.sold, 0) AS tickets_sold,
                COALESCE(res.reserved, 0) AS tickets_reserved
         FROM raffles_read r
@@ -75,7 +76,7 @@ def get_raffle(raffle_id: uuid.UUID) -> dict:
         """
         SELECT r.id, r.title, r.description, r.ticket_price, r.currency, r.total_tickets,
                r.status, r.draw_at, r.winner_ticket_id, r.number_start, r.number_end,
-               r.number_padding, r.created_at, r.updated_at,
+               r.number_padding, r.owner_id, r.created_at, r.updated_at,
                COALESCE(s.sold, 0) AS tickets_sold,
                COALESCE(res.reserved, 0) AS tickets_reserved
         FROM raffles_read r

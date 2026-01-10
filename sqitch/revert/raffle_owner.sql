@@ -1,0 +1,6 @@
+BEGIN;
+
+ALTER TABLE raffles_read DROP COLUMN IF EXISTS owner_id;
+ALTER TABLE raffles DROP COLUMN IF EXISTS owner_id;
+
+COMMIT;

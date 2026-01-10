@@ -3,3 +3,4 @@
 
 init # initial schema
 cqrs_read_model # read model tables for CQRS
+raffle_owner # add owner_id to raffles and read model
